@@ -3,7 +3,7 @@
   "package": "net.rizen.arc_cache.mixin",
   "compatibilityLevel": "JAVA_21",
   "mixins": [
-    "PlayerAdvancementTrackerMixin",
+    "InventoryChangeTriggerMixin",
     "PlayerInventoryMixin",
     "RecipeBookMixin",
     "RecipeManagerMixin",
