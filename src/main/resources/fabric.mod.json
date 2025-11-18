@@ -1,0 +1,34 @@
+{
+	"schemaVersion": 1,
+	"id": "arc_cache",
+	"version": "${version}",
+	"name": "A.R.C-Cache",
+	"description": "Advancement, Recipe & Criterion Cache - Server-side optimization for faster advancement and recipe processing",
+	"authors": [
+		"rizen"
+	],
+	"contact": {
+		"homepage": "https://modrinth.com/mod/a.r.c-cache",
+		"sources": "https://github.com/rizen211/arc_cache-fabric"
+	},
+	"license": "GNU General Public License v3",
+	"icon": "assets/arc_cache/icon.jpg",
+	"environment": "*",
+	"entrypoints": {
+		"main": [
+			"net.rizen.arc_cache.ARCCache"
+		]
+	},
+	"mixins": [
+		"arc_cache.mixins.json"
+	],
+	"depends": {
+		"fabricloader": ">=0.17.3",
+		"minecraft": "~1.21.1",
+		"java": ">=21",
+		"fabric-api": "*"
+	},
+	"suggests": {
+		"another-mod": "*"
+	}
+}
