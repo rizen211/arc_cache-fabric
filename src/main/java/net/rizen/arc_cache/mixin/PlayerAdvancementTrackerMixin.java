@@ -36,17 +36,13 @@ public abstract class PlayerAdvancementTrackerMixin {
     private ServerPlayerEntity owner;
 
     @Unique
-    private final Map<AdvancementEntry, Boolean> arc_cache$completionCache = new IdentityHashMap<>();
-
-    @Unique
-    private boolean arc_cache$cacheValid = true;
+    private final Map<AdvancementEntry, AdvancementProgress> arc_cache$progressCache = new IdentityHashMap<>();
 
     @Inject(method = "grantCriterion", at = @At("HEAD"))
     private void onGrantCriterion(AdvancementEntry advancement, String criterionName, CallbackInfoReturnable<Boolean> cir) {
         if (!ARCCache.getConfig().enabled) return;
 
-        arc_cache$completionCache.remove(advancement);
-        arc_cache$cacheValid = false;
+        arc_cache$progressCache.remove(advancement);
         ((DirtyFlagAccessor) owner).arc_cache$setAdvancementsDirty(true);
     }
 
@@ -54,43 +50,62 @@ public abstract class PlayerAdvancementTrackerMixin {
     private void onRevokeCriterion(AdvancementEntry advancement, String criterionName, CallbackInfoReturnable<Boolean> cir) {
         if (!ARCCache.getConfig().enabled) return;
 
-        arc_cache$completionCache.remove(advancement);
-        arc_cache$cacheValid = false;
+        arc_cache$progressCache.remove(advancement);
         ((DirtyFlagAccessor) owner).arc_cache$setAdvancementsDirty(true);
     }
 
+    @Inject(method = "getProgress", at = @At("HEAD"), cancellable = true)
+    private void cacheGetProgress(AdvancementEntry advancement, CallbackInfoReturnable<AdvancementProgress> cir) {
+        if (!ARCCache.getConfig().enabled || !ARCCache.getConfig().enableAdvancementCache) {
+            return;
+        }
+
+        AdvancementProgress cached = arc_cache$progressCache.get(advancement);
+
+        if (cached != null) {
+            CacheStats.getInstance().advancementCacheHits.incrementAndGet();
+            CacheStats.getInstance().advancementUpdatesSkipped.incrementAndGet();
+            cir.setReturnValue(cached);
+            return;
+        }
+
+        CacheStats.getInstance().advancementCacheMisses.incrementAndGet();
+    }
+
     @Inject(method = "getProgress", at = @At("RETURN"))
-    private void onGetProgress(AdvancementEntry advancement, CallbackInfoReturnable<AdvancementProgress> cir) {
+    private void storeProgressInCache(AdvancementEntry advancement, CallbackInfoReturnable<AdvancementProgress> cir) {
         if (!ARCCache.getConfig().enabled || !ARCCache.getConfig().enableAdvancementCache) {
             return;
         }
 
         AdvancementProgress progress = cir.getReturnValue();
         if (progress != null) {
-            Boolean cachedValue = arc_cache$completionCache.get(advancement);
-            boolean currentValue = progress.isDone();
+            arc_cache$progressCache.put(advancement, progress);
 
-            if (cachedValue != null && cachedValue == currentValue) {
-                CacheStats.getInstance().advancementCacheHits.incrementAndGet();
-                CacheStats.getInstance().advancementUpdatesSkipped.incrementAndGet();
-            } else {
-                arc_cache$completionCache.put(advancement, currentValue);
-                CacheStats.getInstance().advancementCacheMisses.incrementAndGet();
+            int maxSize = ARCCache.getConfig().maxAdvancementCacheSize;
+            if (arc_cache$progressCache.size() > maxSize) {
+                arc_cache$trimCache(maxSize);
             }
 
-            CacheStats.getInstance().advancementCacheSize = arc_cache$completionCache.size();
+            CacheStats.getInstance().advancementCacheSize = arc_cache$progressCache.size();
         }
     }
 
     @Inject(method = "reload", at = @At("HEAD"))
     private void onReload(CallbackInfo ci) {
-        arc_cache$completionCache.clear();
-        arc_cache$cacheValid = false;
+        arc_cache$progressCache.clear();
         ((DirtyFlagAccessor) owner).arc_cache$setAdvancementsDirty(true);
     }
 
-    @Inject(method = "reload", at = @At("TAIL"))
-    private void afterReload(CallbackInfo ci) {
-        arc_cache$cacheValid = true;
+    @Unique
+    private void arc_cache$trimCache(int targetSize) {
+        if (arc_cache$progressCache.size() <= targetSize) {
+            return;
+        }
+
+        int toRemove = arc_cache$progressCache.size() - targetSize;
+        arc_cache$progressCache.keySet().stream()
+                .limit(toRemove)
+                .forEach(arc_cache$progressCache::remove);
     }
 }

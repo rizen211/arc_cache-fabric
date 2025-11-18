@@ -26,6 +26,10 @@ public class CacheStats {
     public final AtomicLong recipeUpdatesSkipped = new AtomicLong(0);
     public volatile int recipeCacheSize = 0;
 
+    public final AtomicLong recipeBookCacheHits = new AtomicLong(0);
+    public final AtomicLong recipeBookCacheMisses = new AtomicLong(0);
+    public volatile int recipeBookCacheSize = 0;
+
     public final AtomicLong totalTicksSaved = new AtomicLong(0);
 
     private CacheStats() {}
@@ -46,6 +50,12 @@ public class CacheStats {
         return (recipeCacheHits.get() * 100.0) / total;
     }
 
+    public double getRecipeBookHitRate() {
+        long total = recipeBookCacheHits.get() + recipeBookCacheMisses.get();
+        if (total == 0) return 0.0;
+        return (recipeBookCacheHits.get() * 100.0) / total;
+    }
+
     public void reset() {
         advancementCacheHits.set(0);
         advancementCacheMisses.set(0);
@@ -53,20 +63,26 @@ public class CacheStats {
         recipeCacheHits.set(0);
         recipeCacheMisses.set(0);
         recipeUpdatesSkipped.set(0);
+        recipeBookCacheHits.set(0);
+        recipeBookCacheMisses.set(0);
         totalTicksSaved.set(0);
         advancementCacheSize = 0;
         recipeCacheSize = 0;
+        recipeBookCacheSize = 0;
     }
 
     public String getFormattedStats() {
         return String.format(
-                "A.R.C-Cache: Adv %.1f%% (%d/%d) | Recipe %.1f%% (%d/%d) | Skipped: %d/%d",
+                "A.R.C-Cache: Adv %.1f%% (%d/%d) | Recipe %.1f%% (%d/%d) | Book %.1f%% (%d/%d) | Skipped: %d/%d",
                 getAdvancementHitRate(),
                 advancementCacheHits.get(),
                 advancementCacheHits.get() + advancementCacheMisses.get(),
                 getRecipeHitRate(),
                 recipeCacheHits.get(),
                 recipeCacheHits.get() + recipeCacheMisses.get(),
+                getRecipeBookHitRate(),
+                recipeBookCacheHits.get(),
+                recipeBookCacheHits.get() + recipeBookCacheMisses.get(),
                 advancementUpdatesSkipped.get(),
                 recipeUpdatesSkipped.get()
         );

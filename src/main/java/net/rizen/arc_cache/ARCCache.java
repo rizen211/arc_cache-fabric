@@ -67,14 +67,21 @@ public class ARCCache implements ModInitializer {
 										stats.getRecipeHitRate()
 								)), false);
 								source.sendFeedback(() -> Text.literal(String.format(
+										"§eRecipeBook Cache: §f%,d hits / %,d misses (§a%.1f%% hit rate§f)",
+										stats.recipeBookCacheHits.get(),
+										stats.recipeBookCacheMisses.get(),
+										stats.getRecipeBookHitRate()
+								)), false);
+								source.sendFeedback(() -> Text.literal(String.format(
 										"§eSkipped Updates: §f%,d advancement / %,d recipe",
 										stats.advancementUpdatesSkipped.get(),
 										stats.recipeUpdatesSkipped.get()
 								)), false);
 								source.sendFeedback(() -> Text.literal(String.format(
-										"§eCache Size: §f%,d advancements / %,d recipes",
+										"§eCache Size: §f%,d advancements / %,d recipes / %,d recipe book",
 										stats.advancementCacheSize,
-										stats.recipeCacheSize
+										stats.recipeCacheSize,
+										stats.recipeBookCacheSize
 								)), false);
 
 								return 1;
@@ -116,6 +123,16 @@ public class ARCCache implements ModInitializer {
 										context.getSource().sendFeedback(() ->
 												Text.literal(String.format("§eRecipe cache %s",
 														config.enableRecipeCache ? "§aenabled" : "§cdisabled")), true);
+										return 1;
+									})
+							)
+							.then(CommandManager.literal("recipe-book-cache")
+									.executes(context -> {
+										config.enableRecipeBookCache = !config.enableRecipeBookCache;
+										config.save();
+										context.getSource().sendFeedback(() ->
+												Text.literal(String.format("§eRecipeBook cache %s",
+														config.enableRecipeBookCache ? "§aenabled" : "§cdisabled")), true);
 										return 1;
 									})
 							)
