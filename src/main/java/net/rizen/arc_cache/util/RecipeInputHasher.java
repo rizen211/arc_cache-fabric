@@ -32,7 +32,6 @@ public class RecipeInputHasher {
 
             int stackHash = hashItemStack(stack);
             hash ^= stackHash;
-            hash ^= Integer.rotateLeft(stackHash, i % 32);
             itemCount++;
         }
 
@@ -48,31 +47,7 @@ public class RecipeInputHasher {
         int hash = 1;
         hash = 31 * hash + stack.getItem().hashCode();
         hash = 31 * hash + stack.getCount();
-        hash = 31 * hash + stack.getComponents().hashCode();
 
         return hash;
-    }
-
-    public static int hashRecipeInputOrdered(RecipeInput input) {
-        if (input == null) {
-            return 0;
-        }
-
-        int hash = 1;
-
-        for (int i = 0; i < input.getSize(); i++) {
-            ItemStack stack = input.getStackInSlot(i);
-            hash = 31 * hash + hashItemStack(stack);
-
-            if (!stack.isEmpty()) {
-                hash = 31 * hash + i;
-            }
-        }
-
-        return hash;
-    }
-
-    public static int hashSingleItem(ItemStack stack) {
-        return hashItemStack(stack);
     }
 }

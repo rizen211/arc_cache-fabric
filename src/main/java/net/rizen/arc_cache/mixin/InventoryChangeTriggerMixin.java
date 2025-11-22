@@ -24,14 +24,15 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
-import java.util.HashMap;
+import java.util.Collections;
 import java.util.Map;
+import java.util.WeakHashMap;
 
 @Mixin(InventoryChangedCriterion.class)
 public class InventoryChangeTriggerMixin {
 
     @Unique
-    private final Map<ServerPlayerEntity, InventorySnapshot> arc_cache$playerSnapshots = new HashMap<>();
+    private final Map<ServerPlayerEntity, InventorySnapshot> arc_cache$playerSnapshots = Collections.synchronizedMap(new WeakHashMap<>());
 
     @Inject(method = "trigger", at = @At("HEAD"), cancellable = true)
     private void optimizeInventoryTrigger(ServerPlayerEntity player, PlayerInventory inventory, ItemStack stack, CallbackInfo ci) {
@@ -42,14 +43,14 @@ public class InventoryChangeTriggerMixin {
         InventorySnapshot snapshot = arc_cache$playerSnapshots.get(player);
 
         if (snapshot == null) {
-            snapshot = new InventorySnapshot();
+            snapshot = new InventorySnapshot(inventory);
             arc_cache$playerSnapshots.put(player, snapshot);
-            snapshot.update(inventory);
             CacheStats.getInstance().advancementCacheMisses.incrementAndGet();
+            arc_cache$updateCacheSize();
             return;
         }
 
-        if (arc_cache$shouldSkipTrigger(inventory, snapshot)) {
+        if (snapshot.matches(inventory)) {
             CacheStats.getInstance().advancementCacheHits.incrementAndGet();
             CacheStats.getInstance().advancementUpdatesSkipped.incrementAndGet();
             ci.cancel();
@@ -58,28 +59,27 @@ public class InventoryChangeTriggerMixin {
 
         snapshot.update(inventory);
         CacheStats.getInstance().advancementCacheMisses.incrementAndGet();
-        CacheStats.getInstance().advancementCacheSize = arc_cache$playerSnapshots.size();
+        arc_cache$updateCacheSize();
+        arc_cache$enforceCacheLimit();
     }
 
     @Unique
-    private boolean arc_cache$shouldSkipTrigger(PlayerInventory inventory, InventorySnapshot snapshot) {
-        int emptySlots = 0;
-        int filledSlots = 0;
-        int totalItems = 0;
+    private void arc_cache$updateCacheSize() {
+        CacheStats.getInstance().setAdvancementCacheSize(arc_cache$playerSnapshots.size());
+    }
 
-        for (int i = 0; i < inventory.size(); i++) {
-            ItemStack current = inventory.getStack(i);
-
-            if (current.isEmpty()) {
-                emptySlots++;
-            } else {
-                filledSlots++;
-                totalItems += current.getCount();
+    @Unique
+    private void arc_cache$enforceCacheLimit() {
+        int maxSize = ARCCache.getConfig().maxAdvancementCacheSize;
+        if (arc_cache$playerSnapshots.size() > maxSize) {
+            synchronized (arc_cache$playerSnapshots) {
+                if (arc_cache$playerSnapshots.size() > maxSize) {
+                    int toRemove = arc_cache$playerSnapshots.size() - maxSize;
+                    arc_cache$playerSnapshots.keySet().stream()
+                            .limit(toRemove)
+                            .forEach(arc_cache$playerSnapshots::remove);
+                }
             }
         }
-
-        return snapshot.emptySlots == emptySlots &&
-                snapshot.filledSlots == filledSlots &&
-                snapshot.totalItems == totalItems;
     }
 }

@@ -22,14 +22,14 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
-import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 @Mixin(RecipeBook.class)
 public class RecipeBookMixin {
 
     @Unique
-    private final Map<RecipeEntry<?>, Boolean> arc_cache$recipeCache = new HashMap<>();
+    private final Map<RecipeEntry<?>, Boolean> arc_cache$recipeCache = new ConcurrentHashMap<>();
 
     @Inject(method = "add", at = @At("HEAD"))
     private void onAddRecipe(RecipeEntry<?> recipe, CallbackInfo ci) {
@@ -75,7 +75,7 @@ public class RecipeBookMixin {
         Boolean result = cir.getReturnValue();
         arc_cache$recipeCache.put(recipe, result);
 
-        CacheStats.getInstance().recipeBookCacheSize = arc_cache$recipeCache.size();
+        CacheStats.getInstance().setRecipeBookCacheSize(arc_cache$recipeCache.size());
     }
 
     @Inject(method = "setOptions", at = @At("HEAD"))

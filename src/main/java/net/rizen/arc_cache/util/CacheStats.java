@@ -11,6 +11,7 @@
 
 package net.rizen.arc_cache.util;
 
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 
 public class CacheStats {
@@ -19,23 +20,58 @@ public class CacheStats {
     public final AtomicLong advancementCacheHits = new AtomicLong(0);
     public final AtomicLong advancementCacheMisses = new AtomicLong(0);
     public final AtomicLong advancementUpdatesSkipped = new AtomicLong(0);
-    public volatile int advancementCacheSize = 0;
 
     public final AtomicLong recipeCacheHits = new AtomicLong(0);
     public final AtomicLong recipeCacheMisses = new AtomicLong(0);
     public final AtomicLong recipeUpdatesSkipped = new AtomicLong(0);
-    public volatile int recipeCacheSize = 0;
 
     public final AtomicLong recipeBookCacheHits = new AtomicLong(0);
     public final AtomicLong recipeBookCacheMisses = new AtomicLong(0);
-    public volatile int recipeBookCacheSize = 0;
 
     public final AtomicLong totalTicksSaved = new AtomicLong(0);
+
+    private final AtomicInteger advancementCacheSizeAtomic = new AtomicInteger(0);
+    private final AtomicInteger recipeCacheSizeAtomic = new AtomicInteger(0);
+    private final AtomicInteger recipeBookCacheSizeAtomic = new AtomicInteger(0);
+
+    @Deprecated
+    public volatile int advancementCacheSize = 0;
+    @Deprecated
+    public volatile int recipeCacheSize = 0;
+    @Deprecated
+    public volatile int recipeBookCacheSize = 0;
 
     private CacheStats() {}
 
     public static CacheStats getInstance() {
         return INSTANCE;
+    }
+
+    public int getAdvancementCacheSize() {
+        return advancementCacheSizeAtomic.get();
+    }
+
+    public int getRecipeCacheSize() {
+        return recipeCacheSizeAtomic.get();
+    }
+
+    public int getRecipeBookCacheSize() {
+        return recipeBookCacheSizeAtomic.get();
+    }
+
+    public void setAdvancementCacheSize(int size) {
+        advancementCacheSizeAtomic.set(size);
+        advancementCacheSize = size;
+    }
+
+    public void setRecipeCacheSize(int size) {
+        recipeCacheSizeAtomic.set(size);
+        recipeCacheSize = size;
+    }
+
+    public void setRecipeBookCacheSize(int size) {
+        recipeBookCacheSizeAtomic.set(size);
+        recipeBookCacheSize = size;
     }
 
     public double getAdvancementHitRate() {
@@ -56,7 +92,7 @@ public class CacheStats {
         return (recipeBookCacheHits.get() * 100.0) / total;
     }
 
-    public void reset() {
+    public synchronized void reset() {
         advancementCacheHits.set(0);
         advancementCacheMisses.set(0);
         advancementUpdatesSkipped.set(0);
@@ -66,6 +102,11 @@ public class CacheStats {
         recipeBookCacheHits.set(0);
         recipeBookCacheMisses.set(0);
         totalTicksSaved.set(0);
+
+        advancementCacheSizeAtomic.set(0);
+        recipeCacheSizeAtomic.set(0);
+        recipeBookCacheSizeAtomic.set(0);
+
         advancementCacheSize = 0;
         recipeCacheSize = 0;
         recipeBookCacheSize = 0;

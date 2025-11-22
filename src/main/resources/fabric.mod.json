@@ -9,10 +9,11 @@
 	],
 	"contact": {
 		"homepage": "https://modrinth.com/mod/a.r.c-cache",
-		"sources": "https://github.com/rizen211/arc_cache-fabric"
+		"sources": "https://github.com/rizen211/arc_cache-fabric",
+		"issues": "https://github.com/rizen211/arc_cache-fabric/issues"
 	},
 	"license": "GNU General Public License v3",
-	"icon": "assets/arc_cache/icon.jpg",
+	"icon": "assets/arc_cache/icon.png",
 	"environment": "*",
 	"entrypoints": {
 		"main": [

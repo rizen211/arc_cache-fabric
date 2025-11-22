@@ -27,15 +27,22 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
+import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Optional;
-import java.util.concurrent.ConcurrentHashMap;
 
 @Mixin(RecipeManager.class)
 public abstract class RecipeManagerMixin {
 
     @Unique
-    private final Map<RecipeCacheKey, Optional> arc_cache$recipeCache = new ConcurrentHashMap<>();
+    private final Map<RecipeCacheKey, Optional<RecipeEntry<?>>> arc_cache$recipeCache =
+            Collections.synchronizedMap(new LinkedHashMap<RecipeCacheKey, Optional<RecipeEntry<?>>>(16, 0.75f, true) {
+                @Override
+                protected boolean removeEldestEntry(Map.Entry<RecipeCacheKey, Optional<RecipeEntry<?>>> eldest) {
+                    return size() > ARCCache.getConfig().maxRecipeCacheSize;
+                }
+            });
 
     @Unique
     private volatile boolean arc_cache$recipeCacheValid = true;
@@ -58,12 +65,14 @@ public abstract class RecipeManagerMixin {
         int inputHash = RecipeInputHasher.hashRecipeInput(recipeInput);
         RecipeCacheKey cacheKey = new RecipeCacheKey(recipeType, inputHash);
 
-        Optional cached = arc_cache$recipeCache.get(cacheKey);
+        Optional<RecipeEntry<?>> cached = arc_cache$recipeCache.get(cacheKey);
 
         if (cached != null) {
             CacheStats.getInstance().recipeCacheHits.incrementAndGet();
             CacheStats.getInstance().recipeUpdatesSkipped.incrementAndGet();
-            cir.setReturnValue(cached);
+            @SuppressWarnings("unchecked")
+            Optional<RecipeEntry> result = (Optional) cached;
+            cir.setReturnValue(result);
             return;
         }
 
@@ -89,14 +98,11 @@ public abstract class RecipeManagerMixin {
         RecipeCacheKey cacheKey = new RecipeCacheKey(recipeType, inputHash);
 
         Optional<RecipeEntry> result = cir.getReturnValue();
-        arc_cache$recipeCache.put(cacheKey, result);
+        @SuppressWarnings("unchecked")
+        Optional<RecipeEntry<?>> cacheValue = (Optional) result;
+        arc_cache$recipeCache.put(cacheKey, cacheValue);
 
-        int maxSize = ARCCache.getConfig().maxRecipeCacheSize;
-        if (arc_cache$recipeCache.size() > maxSize) {
-            arc_cache$trimCache(maxSize);
-        }
-
-        CacheStats.getInstance().recipeCacheSize = arc_cache$recipeCache.size();
+        CacheStats.getInstance().setRecipeCacheSize(arc_cache$recipeCache.size());
     }
 
     @Inject(method = "apply*", at = @At("HEAD"))
@@ -110,17 +116,5 @@ public abstract class RecipeManagerMixin {
     private void onRecipeReloadComplete(CallbackInfo ci) {
         arc_cache$recipeCacheValid = true;
         ARCCache.LOGGER.info("Recipe cache revalidated");
-    }
-
-    @Unique
-    private void arc_cache$trimCache(int targetSize) {
-        if (arc_cache$recipeCache.size() <= targetSize) {
-            return;
-        }
-
-        int toRemove = arc_cache$recipeCache.size() - targetSize;
-        arc_cache$recipeCache.keySet().stream()
-                .limit(toRemove)
-                .forEach(arc_cache$recipeCache::remove);
     }
 }
